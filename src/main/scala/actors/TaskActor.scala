@@ -33,8 +33,10 @@ class TaskActor(userId: String) extends Actor with ActorLogging {
       taskRepository.insert(userId, task)
       sender ! Ack
     case GetTasks =>
+      //store original sender locally to notify this sender when future terminates
+      val origSender = sender
       taskRepository.getTasksByUser(userId).map { tasks =>
-        sender ! tasks
+        origSender ! tasks
       }
   }
 }
