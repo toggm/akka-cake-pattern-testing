@@ -1,12 +1,10 @@
 package actors
 
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.Props
-import models.Task
+import akka.actor._
+import models._
 import scala.concurrent.ExecutionContext.Implicits.global
-import repositories.InMemoryTaskRepositoryImpl
-import repositories.TaskRepository
+import repositories._
+import scala.concurrent.Future
 
 object TaskActor {
 
@@ -16,6 +14,12 @@ object TaskActor {
   case object Ack
 
   def props(userId: String) = Props(classOf[DefaultTaskActor], userId)
+
+  implicit class ExtendedActorRef(self: ActorRef) {
+    def ->(f: => Future[_]) = {
+      f.map(self ! _)
+    }
+  }
 }
 
 trait TaskActorComponent {
@@ -40,10 +44,7 @@ class TaskActor(userId: String) extends Actor with ActorLogging {
       taskRepository.insert(userId, task)
       sender ! Ack
     case GetTasks =>
-      //store original sender locally to notify this sender when future terminates
-      val origSender = sender
-      taskRepository.getTasksByUser(userId).map { tasks =>
-        origSender ! tasks
-      }
+      //use extended function of actorref to store current sender reference
+      sender -> taskRepository.getTasksByUser(userId)
   }
 }
