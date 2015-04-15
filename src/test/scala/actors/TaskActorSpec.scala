@@ -12,7 +12,6 @@ import TaskActor._
 import models.Task
 import scala.concurrent.Future
 import repositories.TaskRepository
-import repositories.TaskRepositoryComponent
 
 class ActorTestScope extends TestKit(ActorSystem("test")) with Scope
 
@@ -50,11 +49,11 @@ class TaskActorSpec extends Specification with Mockito {
     "return tasks from repository" in new ActorTestScope {
       val userId = "noob"
       val probe = TestProbe()
-      val taskRepository = mock[TaskRepository]
-      val actorRef = system.actorOf(TaskActorMock.props(userId, taskRepository))
+      val taskActorComponent = new TaskActorComponentMock
+      val actorRef = system.actorOf(TaskActorMock.props(userId, taskActorComponent))
       val tasks = Seq(Task("task1"), Task("task2"))
 
-      taskRepository.getTasksByUser(isEq(userId)) returns Future.successful(tasks)
+      taskActorComponent.taskRepository.getTasksByUser(isEq(userId)) returns Future.successful(tasks)
 
       probe.send(actorRef, GetTasks)
       probe.expectMsg(tasks)
@@ -63,9 +62,17 @@ class TaskActorSpec extends Specification with Mockito {
 
 }
 
-object TaskActorMock {
-  def props(userId: String, taskRepository: TaskRepository) = Props(classOf[TaskActorMock], userId, taskRepository)
+/**
+ * Use either component mock or create mocks in tastcase yourself
+ */
+class TaskActorComponentMock extends TaskActorComponent with Mockito {
+  val taskRepository = mock[TaskRepository]
 }
 
-class TaskActorMock(userId: String, val taskRepository: TaskRepository) extends TaskActor(userId) with TaskRepositoryComponent {
+object TaskActorMock {
+  def props(userId: String, taskRepository: TaskRepository) = Props(classOf[TaskActorMock], userId, taskRepository)
+  def props(userId: String, taskActorComponent: TaskActorComponent) = Props(classOf[TaskActorMock], userId, taskActorComponent.taskRepository)
+}
+
+class TaskActorMock(userId: String, val taskRepository: TaskRepository) extends TaskActor(userId) with TaskActorComponent {
 }

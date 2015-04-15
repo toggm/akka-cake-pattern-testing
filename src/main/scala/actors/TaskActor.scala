@@ -3,11 +3,10 @@ package actors
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.Props
-import repositories.TaskRepositoryComponent
 import models.Task
 import scala.concurrent.ExecutionContext.Implicits.global
 import repositories.InMemoryTaskRepositoryImpl
-import repositories.DefaultTaskRepositoryComponent
+import repositories.TaskRepository
 
 object TaskActor {
 
@@ -19,10 +18,18 @@ object TaskActor {
   def props(userId: String) = Props(classOf[DefaultTaskActor], userId)
 }
 
-class DefaultTaskActor(userId: String) extends TaskActor(userId) with DefaultTaskRepositoryComponent
+trait TaskActorComponent {
+  val taskRepository: TaskRepository
+}
+
+trait DefaultTaskActorComponent extends TaskActorComponent {
+  val taskRepository: TaskRepository = new InMemoryTaskRepositoryImpl
+}
+
+class DefaultTaskActor(userId: String) extends TaskActor(userId) with DefaultTaskActorComponent
 
 class TaskActor(userId: String) extends Actor with ActorLogging {
-  self: TaskRepositoryComponent =>
+  self: TaskActorComponent =>
   import actors.TaskActor._
 
   def receive: Receive = {
